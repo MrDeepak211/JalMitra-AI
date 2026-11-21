@@ -9,7 +9,6 @@
  */
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <ArduinoJson.h>
 
 const char* WIFI_SSID = "YOUR_WIFI_NAME";
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
@@ -60,12 +59,9 @@ void postReading(int raw) {
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
 
-  StaticJsonDocument<192> doc;
-  doc["device_id"] = DEVICE_ID;
-  doc["plot_id"] = PLOT_ID;
-  doc["raw_adc"] = raw;
-  String payload;
-  serializeJson(doc, payload);
+  String payload = String("{\\"device_id\\":\\"") + DEVICE_ID +
+                   "\\",\\"plot_id\\":\\"" + PLOT_ID +
+                   "\\",\\"raw_adc\\":" + String(raw) + "}";
 
   int status = http.POST(payload);
   Serial.print("POST status: ");
