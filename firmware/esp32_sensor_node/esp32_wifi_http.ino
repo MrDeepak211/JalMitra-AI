@@ -59,9 +59,9 @@ void postReading(int raw) {
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
 
-  String payload = String("{\\"device_id\\":\\"") + DEVICE_ID +
-                   "\\",\\"plot_id\\":\\"" + PLOT_ID +
-                   "\\",\\"raw_adc\\":" + String(raw) + "}";
+  String payload = String("{\"device_id\":\"") + DEVICE_ID +
+                   "\",\"plot_id\":\"" + PLOT_ID +
+                   "\",\"raw_adc\":" + String(raw) + "}";
 
   int status = http.POST(payload);
   Serial.print("POST status: ");
