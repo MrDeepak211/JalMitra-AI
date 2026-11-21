@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Activity, Bell, CalendarDays, ChevronDown, CloudSun, Droplets, Gauge,
   Leaf, MapPin, Menu, Settings2, ShieldCheck, Sprout, Wifi, Languages,
@@ -8,6 +8,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 
 type Language = 'EN' | 'मराठी'
 type Tab = 'Overview' | 'My Fields' | 'Water Schedule' | 'Device Health'
+type ApiHealth = { ok: boolean; service?: string; mode?: string }
 
 const demoMoisture = [
   { time: '06 AM', moisture: 42 }, { time: '08 AM', moisture: 39 },
@@ -58,6 +59,31 @@ export default function App() {
   const [language, setLanguage] = useState<Language>('EN')
   const [tab, setTab] = useState<Tab>('Overview')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [apiHealth, setApiHealth] = useState<ApiHealth | null>(null)
+  const [readingCount, setReadingCount] = useState<number | null>(null)
+  const [apiError, setApiError] = useState('')
+  const apiBase = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000').replace(/\/$/, '')
+  useEffect(() => {
+    let active = true
+    const checkApi = async () => {
+      try {
+        const results = await Promise.all([fetch(apiBase + '/api/health'), fetch(apiBase + '/api/readings')])
+        if (!results[0].ok || !results[1].ok) throw new Error('API error')
+        const health = await results[0].json() as ApiHealth
+        const readings = await results[1].json() as { count?: number }
+        if (active) {
+          setApiHealth(health)
+          setReadingCount(typeof readings.count === 'number' ? readings.count : 0)
+          setApiError('')
+        }
+      } catch {
+        if (active) { setApiHealth(null); setReadingCount(null); setApiError('API unavailable — start backend with npm run api') }
+      }
+    }
+    void checkApi()
+    const timer = window.setInterval(checkApi, 30000)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [apiBase])
   const t = copy[language]
   const nav: Tab[] = ['Overview', 'My Fields', 'Water Schedule', 'Device Health']
   const chartData = useMemo(() => demoMoisture, [])
@@ -94,7 +120,7 @@ export default function App() {
         </>}
         {tab==='My Fields'&&<section className="panel inner-panel"><div className="section-kicker">FIELD REGISTER · DEMO</div><h2>My fields</h2><div className="field-card"><div className="field-icon"><Sprout/></div><div><b>Plot JM-01 · North field</b><p>Crop and soil profile not yet configured</p><small>Sensor: demo series only · Installation pending</small></div><span className="status status-planned">Setup pending</span></div><div className="notice"><AlertTriangle size={16}/> Add verified crop, soil type, sowing date and sensor installation details before enabling recommendations.</div></section>}
         {tab==='Water Schedule'&&<section className="panel inner-panel"><div className="section-kicker">COMMUNITY COORDINATION · DEMO</div><h2>Shared water schedule</h2><p className="muted">Illustrative schedule only. It is not a confirmed village allocation.</p><div className="schedule-list full">{demoSchedule.map((slot,i)=><div className="schedule-row" key={slot.time}><div className="time-col"><Clock3 size={15}/>{slot.time}</div><div className={`schedule-dot dot-${i%3}`}/><div className="schedule-person"><b>{slot.farmer}</b><small>{slot.plot}</small></div><span className={`status status-${slot.status.toLowerCase().replace(' ','-')}`}>{slot.status}</span></div>)}</div></section>}
-        {tab==='Device Health'&&<section className="panel inner-panel"><div className="section-kicker">DEVICE CONNECTIVITY</div><h2>Sensor node health</h2><div className="device-state"><div className="device-icon"><Activity/></div><div><b>ESP32 node · JM-01</b><p>Simulation mode — no physical device connected</p></div><span className="status status-planned">Not connected</span></div><div className="device-grid"><div><small>Firmware</small><b>Starter v0.1.0</b></div><div><small>Last payload</small><b>Demo only</b></div><div><small>Calibration</small><b>Pending</b></div></div></section>}
+        {tab==='Device Health'&&<section className="panel inner-panel"><div className="section-kicker">DEVICE CONNECTIVITY</div><h2>Sensor node health</h2><div className="device-state"><div className="device-icon"><Activity/></div><div><b>JalMitra API</b><p>{apiHealth ? 'Reachable · ' + (apiHealth.mode || 'prototype') + ' mode' : apiError || 'Checking API connection…'}</p></div><span className={`status ${apiHealth ? '' : 'status-planned'}`}>{apiHealth ? 'Online' : 'Offline'}</span></div><div className="device-grid"><div><small>API service</small><b>{apiHealth?.service || 'Not detected'}</b></div><div><small>Stored readings</small><b>{readingCount === null ? '—' : readingCount}</b></div><div><small>ESP32 hardware</small><b>Not connected</b></div></div><div className="notice"><AlertTriangle size={16}/> API readings are held in temporary memory. No physical sensor is connected yet; raw ADC values must be calibrated for the actual soil before use.</div></section>}
         <footer className="footer"><span>JALMITRA AI <i/> SEVA FIRST INNOVATION CHALLENGE 2026</span><span>Prototype v0.1.0 · Demo data is not live field information</span></footer>
       </section>
     </main>
